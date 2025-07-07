@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LinkUp - Ghana Connections Game</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // Day 5: University Challenge puzzle data
+        const SAMPLE_PUZZLE = {
+          id: "linkup_day_5",
+          date: "2024-01-19",
+          theme: "University Challenge",
+          words: [
+            "LEGON", "KNUST", "UCC", "UDS",
+            "UNIVERSITY", "COLLEGE", "CAMPUS", "STUDENT", 
+            "TECH", "SCIENCE", "ARTS", "BUSINESS",
+            "KUMASI", "TAMALE", "ACCRA", "SUNYANI"
+          ],
+          categories: [
+            {
+              name: "EDUCATION TERMS",
+              words: ["UNIVERSITY", "COLLEGE", "CAMPUS", "STUDENT"],
+              difficulty: "yellow",
+              explanation: "Words related to higher education"
+            },
+            {
+              name: "ACADEMIC SUBJECTS",
+              words: ["TECH", "SCIENCE", "ARTS", "BUSINESS"],
+              difficulty: "green",
+              explanation: "Fields of study in universities"
+            },
+            {
+              name: "MAJOR GHANA UNIVERSITIES",
+              words: ["LEGON", "KNUST", "UCC", "UDS"],
+              difficulty: "blue",
+              explanation: "University of Ghana Legon, KNUST, University of Cape Coast, University for Development Studies"
+            },
+            {
+              name: "UNIVERSITY CITIES",
+              words: ["KUMASI", "TAMALE", "ACCRA", "SUNYANI"],
+              difficulty: "purple",
+              explanation: "Cities where major universities are located"
+            }
+          ]
+        };
+
+        const DIFFICULTY_COLORS = {
+          yellow: '#F9DF74',
+          green: '#A0C35A', 
+          blue: '#B0C4EF',
+          purple: '#BA81C5'
+        };
+
+        const LinkUpGame = () => {
+          const [selectedWords, setSelectedWords] = useState([]);
+          const [solvedCategories, setSolvedCategories] = useState([]);
+          const [remainingWords, setRemainingWords] = useState([...SAMPLE_PUZZLE.words]);
+          const [mistakes, setMistakes] = useState(0);
+          const [gameState, setGameState] = useState('playing');
+          const [shakeAnimation, setShakeAnimation] = useState(false);
+          const [lastGuess, setLastGuess] = useState(null);
+
+          useEffect(() => {
+            const shuffled = [...SAMPLE_PUZZLE.words].sort(() => Math.random() - 0.5);
+            setRemainingWords(shuffled);
+          }, []);
+
+          const handleWordClick = (word) => {
+            if (gameState !== 'playing') return;
+            
+            if (selectedWords.includes(word)) {
+              setSelectedWords(selectedWords.filter(w => w !== word));
+            } else if (selectedWords.length < 4) {
+              setSelectedWords([...selectedWords, word]);
+            }
+          };
+
+          const handleSubmitGuess = () => {
+            if (selectedWords.length !== 4 || gameState !== 'playing') return;
+
+            const matchedCategory = SAMPLE_PUZZLE.categories.find(category => 
+              category.words.every(word => selectedWords.includes(word)) &&
+              selectedWords.every(word => category.words.includes(word))
+            );
+
+            if (matchedCategory) {
+              setSolvedCategories([...solvedCategories, matchedCategory]);
+              setRemainingWords(remainingWords.filter(word => !selectedWords.includes(word)));
+              setSelectedWords([]);
+              
+              if (solvedCategories.length === 3) {
+                setGameState('won');
+              }
+            } else {
+              const newMistakes = mistakes + 1;
+              setMistakes(newMistakes);
+              setLastGuess([...selectedWords]);
+              setSelectedWords([]);
+              
+              setShakeAnimation(true);
+              setTimeout(() => setShakeAnimation(false), 600);
+              
+              if (newMistakes >= 4) {
+                setGameState('lost');
+              }
+            }
+          };
+
+          const resetGame = () => {
+            setSelectedWords([]);
+            setSolvedCategories([]);
+            setRemainingWords([...SAMPLE_PUZZLE.words].sort(() => Math.random() - 0.5));
+            setMistakes(0);
+            setGameState('playing');
+            setShakeAnimation(false);
+            setLastGuess(null);
+          };
+
+          const renderMistakeIndicator = () => {
+            return React.createElement('div', {
+              className: "flex justify-center items-center gap-3 mb-4"
+            }, [
+              React.createElement('span', {
+                key: 'label',
+                className: "text-sm text-gray-600 font-medium"
+              }, "Mistakes Remaining"),
+              React.createElement('div', {
+                key: 'dots',
+                className: "flex gap-1"
+              }, [...Array(4)].map((_, index) => 
+                React.createElement('div', {
+                  key: index,
+                  className: `w-3 h-3 rounded-full ${
+                    index < mistakes ? 'bg-gray-800' : 'bg-gray-300'
+                  }`
+                })
+              ))
+            ]);
+          };
+
+          const renderSolvedCategory = (category) => {
+            return React.createElement('div', {
+              key: category.name,
+              className: "mb-2 p-3 rounded-lg text-center font-medium",
+              style: { backgroundColor: DIFFICULTY_COLORS[category.difficulty] }
+            }, [
+              React.createElement('div', {
+                key: 'name',
+                className: "text-sm font-bold mb-1"
+              }, category.name),
+              React.createElement('div', {
+                key: 'words',
+                className: "text-xs"
+              }, category.words.join(', '))
+            ]);
+          };
+
+          const renderWordGrid = () => {
+            if (gameState !== 'playing' || remainingWords.length === 0) return null;
+
+            return React.createElement('div', {
+              className: `grid grid-cols-4 gap-2 mb-4 ${shakeAnimation ? 'animate-pulse' : ''}`
+            }, remainingWords.map((word) => 
+              React.createElement('button', {
+                key: word,
+                onClick: () => handleWordClick(word),
+                className: `
+                  aspect-square rounded-lg border-2 text-xs font-medium
+                  flex items-center justify-center transition-all duration-150
+                  ${selectedWords.includes(word)
+                    ? 'bg-gray-800 text-white border-gray-800'
+                    : 'bg-gray-100 text-gray-800 border-gray-300 hover:bg-gray-200'
+                  }
+                  ${shakeAnimation && lastGuess?.includes(word) ? 'animate-bounce' : ''}
+                `
+              }, word)
+            ));
+          };
+
+          const renderSubmitButton = () => {
+            if (gameState !== 'playing') return null;
+
+            return React.createElement('button', {
+              onClick: handleSubmitGuess,
+              disabled: selectedWords.length !== 4,
+              className: `
+                w-full py-3 rounded-lg font-medium transition-all duration-150
+                ${selectedWords.length === 4
+                  ? 'bg-gray-800 text-white hover:bg-gray-700'
+                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }
+              `
+            }, "Submit Guess");
+          };
+
+          const renderGameEnd = () => {
+            if (gameState === 'playing') return null;
+
+            const isWon = gameState === 'won';
+            
+            return React.createElement('div', {
+              className: "text-center"
+            }, [
+              React.createElement('div', {
+                key: 'title',
+                className: `text-2xl font-bold mb-4 ${isWon ? 'text-green-600' : 'text-red-600'}`
+              }, isWon ? '🎉 Congratulations!' : '😞 Better luck tomorrow!'),
+              
+              !isWon && React.createElement('div', {
+                key: 'solution',
+                className: "mb-4"
+              }, [
+                React.createElement('div', {
+                  key: 'header',
+                  className: "text-lg font-semibold mb-3"
+                }, "Here's today's solution:"),
+                ...SAMPLE_PUZZLE.categories.map(category => 
+                  React.createElement('div', {
+                    key: category.name,
+                    className: "mb-3 p-3 rounded-lg",
+                    style: { backgroundColor: DIFFICULTY_COLORS[category.difficulty] }
+                  }, [
+                    React.createElement('div', {
+                      key: 'name',
+                      className: "font-bold text-sm mb-1"
+                    }, category.name),
+                    React.createElement('div', {
+                      key: 'words',
+                      className: "text-xs mb-1"
+                    }, category.words.join(', ')),
+                    React.createElement('div', {
+                      key: 'explanation',
+                      className: "text-xs italic"
+                    }, category.explanation)
+                  ])
+                )
+              ]),
+              
+              React.createElement('div', {
+                key: 'message',
+                className: "text-gray-600 mb-4"
+              }, "Come back tomorrow for a new puzzle!"),
+              
+              React.createElement('button', {
+                key: 'reset',
+                onClick: resetGame,
+                className: "bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              }, "Try Again (Demo)")
+            ]);
+          };
+
+          return React.createElement('div', {
+            className: "max-w-md mx-auto p-4 bg-white min-h-screen"
+          }, [
+            React.createElement('div', {
+              key: 'header',
+              className: "text-center mb-6"
+            }, [
+              React.createElement('h1', {
+                key: 'title',
+                className: "text-3xl font-bold text-gray-800 mb-2"
+              }, "LinkUp"),
+              React.createElement('p', {
+                key: 'subtitle',
+                className: "text-sm text-gray-600"
+              }, "Find groups of four connected words")
+            ]),
+
+            ...solvedCategories.map(category => renderSolvedCategory(category)),
+
+            renderWordGrid(),
+
+            gameState === 'playing' && renderMistakeIndicator(),
+
+            renderSubmitButton(),
+
+            renderGameEnd(),
+
+            gameState === 'playing' && remainingWords.length === 16 && React.createElement('div', {
+              key: 'instructions',
+              className: "mt-6 text-xs text-gray-500 text-center"
+            }, [
+              React.createElement('p', {
+                key: 'instruction',
+              }, "Select 4 words that share something in common"),
+              React.createElement('p', {
+                key: 'legend',
+                className: "mt-1"
+              }, "🟨 Easy • 🟩 Medium • 🟦 Hard • 🟪 Expert")
+            ])
+          ]);
+        };
+
+        ReactDOM.render(React.createElement(LinkUpGame), document.getElementById('root'));
+    </script>
+</body>
+</html>
